@@ -811,16 +811,30 @@ defmodule PetalComponents.Chat do
   # dependency — referencing MDEx.Document here at compile time would force every
   # consumer to pull in :mdex just to compile, even if they never call markdown/1.
   defp markdown_opts do
-    [
+    opts = [
       extension: [strikethrough: true, table: true, autolink: true, tasklist: true],
+      sanitize: MDEx.Document.default_sanitize_options()
+    ]
+
+    if lumis?() do
       # The theme travels explicitly: lumis 0.6 defaulted one for a bare
       # :html_inline, lumis 0.7 stopped - and the difference renders as
       # structurally-correct but colourless code (found on petal.build,
       # which resolved the newer lumis). onedark is the look the chat's
       # code chrome was designed around, in both colour schemes.
-      syntax_highlight: [formatter: {:html_inline, theme: "onedark"}],
-      sanitize: MDEx.Document.default_sanitize_options()
-    ]
+      Keyword.put(opts, :syntax_highlight, formatter: {:html_inline, theme: "onedark"})
+    else
+      opts
+    end
+  end
+
+  # MDEx 0.12 always highlights with Lumis. From 0.13 its NIF, mdex_native, carries a
+  # highlighter only when the app configures one (`config :mdex_native,
+  # syntax_highlighter: :lumis`, MDEx's README), and asking a NIF without it to
+  # highlight raises.
+  defp lumis? do
+    not Code.ensure_loaded?(MDExNative) or
+      Application.get_env(:mdex_native, :syntax_highlighter) == :lumis
   end
 
   @doc """
@@ -2114,11 +2128,14 @@ defmodule PetalComponents.Chat do
   defp render_markdown(content) do
     ensure_mdex!()
 
+    # A NIF asked for a highlighter it lacks raises: ArgumentError from MDEx 0.13,
+    # RuntimeError from mdex_native under 0.14, which raises the same when Lumis
+    # fails on a block.
     result =
       try do
         MDEx.to_html(content, markdown_opts())
       rescue
-        ArgumentError -> :lumis_unavailable
+        _error in [ArgumentError, RuntimeError] -> :lumis_unavailable
       end
 
     case result do
