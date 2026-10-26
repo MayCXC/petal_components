@@ -1019,6 +1019,26 @@ defmodule PetalComponents.ChatTest do
       html = rendered_to_string(~H|<.markdown content={nil} />|)
       assert_has_class(html, "pc-chat__markdown")
     end
+
+    test "highlights code with Lumis when the app configures it" do
+      assigns = %{md: "```elixir\nIO.puts(:hi)\n```"}
+
+      html = rendered_to_string(~H|<.markdown content={@md} />|)
+
+      assert html =~ ~s(class="lumis")
+    end
+
+    test "renders code plainly when the app configures no highlighter" do
+      highlighter = Application.fetch_env!(:mdex_native, :syntax_highlighter)
+      Application.delete_env(:mdex_native, :syntax_highlighter)
+      on_exit(fn -> Application.put_env(:mdex_native, :syntax_highlighter, highlighter) end)
+      assigns = %{md: "```elixir\nIO.puts(:hi)\n```"}
+
+      html = rendered_to_string(~H|<.markdown content={@md} />|)
+
+      assert html =~ "IO.puts"
+      refute html =~ "lumis"
+    end
   end
 
   describe "rich_text/1" do
