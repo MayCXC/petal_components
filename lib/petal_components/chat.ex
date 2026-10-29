@@ -138,6 +138,22 @@ defmodule PetalComponents.Chat do
           <Chat.prompt_input phx-submit="send" loading={@streaming?} />
         </:footer>
       </Chat.conversation>
+
+  The thread is the element that directly contains the rows, so `phx-update`,
+  `phx-viewport-top` and `phx-viewport-bottom` land on it: the thread is a
+  stream's container, and the viewport bindings load pages of history as the
+  reader reaches an end
+  (https://hexdocs.pm/phoenix_live_view/bindings.html#scroll-events-and-infinite-pagination).
+
+      <Chat.conversation
+        id="messages"
+        phx-update="stream"
+        phx-viewport-top={@more_history? && JS.push("load_earlier", page_loading: true)}
+      >
+        <Chat.chat_message :for={{dom_id, msg} <- @streams.messages} id={dom_id} role={msg.role}>
+          {msg.text}
+        </Chat.chat_message>
+      </Chat.conversation>
   """
   attr :id, :string, doc: "defaults to a generated id so multiple threads can coexist"
 
@@ -148,12 +164,23 @@ defmodule PetalComponents.Chat do
       "plain is the AI convention (ChatGPT/Claude): assistant text sits on the surface, only the user gets a bubble. bubbles puts both sides in bubbles (messenger style)"
 
   attr :class, :any, default: nil
-  attr :rest, :global
+
+  attr :rest, :global,
+    doc:
+      "on the root, except phx-update, phx-viewport-top and phx-viewport-bottom, which land on the thread"
+
   slot :inner_block, required: true
   slot :footer, doc: "pinned below the scroll area, e.g. a prompt_input"
 
+  @thread_attributes [:"phx-update", :"phx-viewport-top", :"phx-viewport-bottom"]
+
   def conversation(assigns) do
-    assigns = assign_new(assigns, :id, fn -> "pc-chat-#{Ecto.UUID.generate()}" end)
+    {thread, rest} = Map.split(assigns.rest, @thread_attributes)
+
+    assigns =
+      assigns
+      |> assign_new(:id, fn -> "pc-chat-#{Ecto.UUID.generate()}" end)
+      |> assign(thread: thread, rest: rest)
 
     ~H"""
     <div class={["pc-chat", @variant == "plain" && "pc-chat--plain", @class]} {@rest}>
@@ -165,6 +192,7 @@ defmodule PetalComponents.Chat do
           role="log"
           aria-live="polite"
           class="pc-chat__thread"
+          {@thread}
         >
           {render_slot(@inner_block)}
         </div>

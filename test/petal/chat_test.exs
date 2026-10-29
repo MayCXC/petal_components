@@ -46,6 +46,32 @@ defmodule PetalComponents.ChatTest do
 
       refute html =~ "pc-chat__footer"
     end
+
+    test "a stream's container and its viewport bindings are the thread, which holds the rows" do
+      assigns = %{}
+
+      html =
+        rendered_to_string(~H"""
+        <.conversation
+          id="thread"
+          phx-update="stream"
+          phx-viewport-top="load_earlier"
+          phx-viewport-bottom="load_later"
+          data-room="r1"
+        >
+          <.chat_message id="messages-1">hello</.chat_message>
+        </.conversation>
+        """)
+
+      doc = LazyHTML.from_fragment(html)
+
+      thread =
+        "#thread[phx-update=stream][phx-viewport-top=load_earlier][phx-viewport-bottom=load_later]"
+
+      assert Enum.count(LazyHTML.query(doc, thread <> " > #messages-1.pc-chat__row")) == 1
+      assert Enum.count(LazyHTML.query(doc, ".pc-chat[data-room=r1]")) == 1
+      assert Enum.empty?(LazyHTML.query(doc, ".pc-chat[phx-update], .pc-chat[phx-viewport-top]"))
+    end
   end
 
   describe "chat_message/1" do
