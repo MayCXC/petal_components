@@ -5487,6 +5487,9 @@
     /* Override --pc-chat-thread-max-height (e.g. 100% / 70vh) to fit a full-page
        chat; set it to none to grow unbounded. */
     max-height: var(--pc-chat-thread-max-height, 28rem);
+    /* PetalChatScroll holds the reader's row when history is inserted above;
+       the browser's own scroll anchoring would move the row a second time. */
+    overflow-anchor: none;
   }
   .pc-chat__footer {
     @apply border-t border-gray-200 p-3 dark:border-gray-700;

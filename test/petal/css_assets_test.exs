@@ -590,6 +590,16 @@ defmodule PetalComponents.CssAssetsTest do
       assert rule =~ "overflow-hidden"
     end
 
+    test "the thread leaves holding the reader's row to its scroll hook", %{css: css} do
+      # PetalChatScroll shifts scrollTop by however far the reader's row moved when
+      # history is inserted above it. A browser that anchors scroll positions itself
+      # (https://drafts.csswg.org/css-scroll-anchoring/), as Chromium does, has
+      # already kept the row in place by then, and the shift moves it on by the
+      # inserted height.
+      [rule] = Regex.run(~r/\.pc-chat__thread \{[^}]+\}/s, css)
+      assert rule =~ "overflow-anchor: none"
+    end
+
     test "the user bubble's attachment row derives from currentColor", %{css: css} do
       assert css =~ ".pc-chat__bubble--user .pc-chat__attachment-row {"
       [rule] = Regex.run(~r/\.pc-chat__bubble--user \.pc-chat__attachment-row \{[^}]+\}/s, css)
